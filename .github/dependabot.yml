@@ -1,0 +1,23 @@
+version: 2
+
+# As actions dos workflows compartilhados ficam fixadas por SHA de commit, com
+# a tag ao lado. O Dependabot abre um pull request por semana com as versões
+# novas, já com SHA e comentário atualizados, e a validação roda nele antes do
+# merge.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    # Como qualquer mudança, a atualização passa pela develop antes de chegar
+    # na main que os outros repositórios chamam.
+    target-branch: develop
+    schedule:
+      interval: weekly
+    # Uma semana de espera antes de propor uma release nova: tempo para uma
+    # versão comprometida ser retirada antes de chegar aqui.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

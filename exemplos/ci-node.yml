@@ -1,0 +1,18 @@
+# Copie para .github/workflows/ci.yml do repositório.
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: thinkmadu/automacoes/.github/workflows/ci-node.yml@main
+    # Descomente o que mudar do padrão.
+    # with:
+    #   working-directory: frontend
+    #   build: ""

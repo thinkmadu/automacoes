@@ -1,0 +1,49 @@
+name: Adicionar ao Project
+
+# Coloca a issue ou o pull request recém-aberto num GitHub Project (o novo,
+# não o classic). O GITHUB_TOKEN não alcança Project de usuário, por isso o
+# repositório que chama passa um PAT classic só com o escopo `project`; o
+# escopo `repo` só entra se o repositório for privado. Em repositório público
+# qualquer pessoa dispara este job abrindo uma issue, então o token carrega o
+# mínimo.
+on:
+  workflow_call:
+    inputs:
+      project-url:
+        description: URL do Project, por exemplo https://github.com/users/thinkmadu/projects/1
+        type: string
+        required: true
+      labeled:
+        description: Etiquetas, separadas por vírgula, que filtram o que entra. Vazio aceita tudo.
+        type: string
+        default: ""
+      label-operator:
+        description: Como o filtro combina as etiquetas, OR, AND ou NOT.
+        type: string
+        default: OR
+    secrets:
+      project-token:
+        description: PAT com acesso de escrita ao Project.
+        required: true
+
+permissions: {}
+
+jobs:
+  add:
+    name: add
+    # Pull request vindo de fork ou aberto pelo Dependabot não recebe os
+    # segredos do Actions, e o job falharia sem o token; ele fica de fora em
+    # vez de deixar o check vermelho.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/add-to-project@5afcf98fcd03f1c2f92c3c83f58ae24323cc57fd # v2.0.0
+        with:
+          project-url: ${{ inputs.project-url }}
+          github-token: ${{ secrets.project-token }}
+          labeled: ${{ inputs.labeled }}
+          label-operator: ${{ inputs.label-operator }}

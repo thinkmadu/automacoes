@@ -1,0 +1,99 @@
+name: CI Node
+
+# Lint, checagem de tipos, testes e build de um projeto Node com npm. Cada
+# etapa é um comando de shell que o repositório que chama pode trocar; string
+# vazia pula a etapa. Os padrões usam `--if-present`, então um script que não
+# existe no package.json é pulado sem erro.
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Versão do Node. O padrão segue a LTS mais recente.
+        type: string
+        default: lts/*
+      working-directory:
+        description: Pasta do projeto, relativa à raiz do repositório.
+        type: string
+        default: "."
+      install:
+        description: Comando de instalação das dependências.
+        type: string
+        default: npm ci
+      lint:
+        description: Comando de lint. Vazio pula.
+        type: string
+        default: npm run lint --if-present
+      typecheck:
+        description: Comando de checagem de tipos. Vazio pula.
+        type: string
+        default: npm run typecheck --if-present
+      test:
+        description: Comando de testes. Vazio pula.
+        type: string
+        default: npm run test --if-present
+      build:
+        description: Comando de build. Vazio pula.
+        type: string
+        default: npm run build --if-present
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    name: node
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `shell: bash` explícito liga o pipefail (`bash -eo pipefail`): sem ele,
+    # `pytest | tee log` sairia verde com teste falhando.
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+
+    # Os comandos são código: chegam por variável de ambiente e rodam com
+    # eval. Nunca passe dado de evento (título de issue ou de pull request,
+    # nome de branch) nestes inputs, porque ele seria executado.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # O cache guarda o diretório global do npm, chaveado pelo
+      # package-lock.json da pasta do projeto. Este job só lê o repositório,
+      # então não há token com escrita para um cache envenenado alcançar.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Instalar
+        if: inputs.install != ''
+        env:
+          COMMAND: ${{ inputs.install }}
+        run: eval "$COMMAND"
+
+      - name: Lint
+        if: inputs.lint != ''
+        env:
+          COMMAND: ${{ inputs.lint }}
+        run: eval "$COMMAND"
+
+      - name: Tipos
+        if: inputs.typecheck != ''
+        env:
+          COMMAND: ${{ inputs.typecheck }}
+        run: eval "$COMMAND"
+
+      - name: Testes
+        if: inputs.test != ''
+        env:
+          COMMAND: ${{ inputs.test }}
+        run: eval "$COMMAND"
+
+      - name: Build
+        if: inputs.build != ''
+        env:
+          COMMAND: ${{ inputs.build }}
+        run: eval "$COMMAND"

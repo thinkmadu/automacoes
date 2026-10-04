@@ -1,0 +1,99 @@
+name: CI Python
+
+# Lint, formatação, checagem de tipos e testes de um projeto Python, com o uv
+# como único instalador. Cada etapa é um comando de shell que o repositório
+# que chama pode trocar; string vazia pula a etapa. Os padrões servem a um
+# projeto uv com ruff e pytest.
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Versão do Python. Vazio usa .python-version ou o requires-python do pyproject.toml.
+        type: string
+        default: ""
+      working-directory:
+        description: Pasta do projeto, relativa à raiz do repositório.
+        type: string
+        default: "."
+      install:
+        description: Comando de instalação das dependências.
+        type: string
+        default: uv sync --all-extras --dev
+      lint:
+        description: Comando de lint. Vazio pula.
+        type: string
+        default: uv run ruff check .
+      format:
+        description: Comando de checagem de formatação. Vazio pula.
+        type: string
+        default: uv run ruff format --check .
+      typecheck:
+        description: Comando de checagem de tipos. Vazio pula.
+        type: string
+        default: ""
+      test:
+        description: Comando de testes. Vazio pula.
+        type: string
+        default: uv run pytest -q
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `shell: bash` explícito liga o pipefail (`bash -eo pipefail`): sem ele,
+    # `pytest | tee log` sairia verde com teste falhando.
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+
+    # Os comandos são código: chegam por variável de ambiente e rodam com
+    # eval. Nunca passe dado de evento (título de issue ou de pull request,
+    # nome de branch) nestes inputs, porque ele seria executado.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # activate-environment cria a .venv na pasta do projeto e a coloca no
+      # PATH: `uv sync` usa essa mesma .venv, e um projeto com
+      # requirements.txt instala nela com `uv pip install -r`.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          working-directory: ${{ inputs.working-directory }}
+          activate-environment: true
+
+      - name: Instalar
+        if: inputs.install != ''
+        env:
+          COMMAND: ${{ inputs.install }}
+        run: eval "$COMMAND"
+
+      - name: Lint
+        if: inputs.lint != ''
+        env:
+          COMMAND: ${{ inputs.lint }}
+        run: eval "$COMMAND"
+
+      - name: Formatação
+        if: inputs.format != ''
+        env:
+          COMMAND: ${{ inputs.format }}
+        run: eval "$COMMAND"
+
+      - name: Tipos
+        if: inputs.typecheck != ''
+        env:
+          COMMAND: ${{ inputs.typecheck }}
+        run: eval "$COMMAND"
+
+      - name: Testes
+        if: inputs.test != ''
+        env:
+          COMMAND: ${{ inputs.test }}
+        run: eval "$COMMAND"

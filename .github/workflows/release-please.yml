@@ -1,0 +1,58 @@
+name: Release Please
+
+# Mantém um pull request de release aberto a partir dos Conventional Commits
+# que chegam na branch padrão; ao ser mesclado, ele cria a tag, a release e
+# atualiza o CHANGELOG.md. O repositório que chama precisa conceder
+# contents, issues e pull-requests com escrita no job, e ter ligado
+# "Allow GitHub Actions to create and approve pull requests" em
+# Settings > Actions > General.
+on:
+  workflow_call:
+    inputs:
+      release-type:
+        description: Estratégia de release (node, python, simple, ...). Vazio usa release-please-config.json.
+        type: string
+        default: ""
+      target-branch:
+        description: Branch que recebe o pull request de release. Vazio usa a branch padrão.
+        type: string
+        default: ""
+    secrets:
+      token:
+        description: >-
+          PAT opcional. Com o GITHUB_TOKEN, o pull request de release não
+          dispara os outros workflows (CI incluso); com um PAT, dispara.
+        required: false
+    outputs:
+      release_created:
+        description: "\"true\" quando esta execução criou uma release."
+        value: ${{ jobs.release-please.outputs.release_created }}
+      tag_name:
+        description: Tag da release criada.
+        value: ${{ jobs.release-please.outputs.tag_name }}
+      version:
+        description: Versão da release criada.
+        value: ${{ jobs.release-please.outputs.version }}
+
+permissions: {}
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # tag, release e o commit do CHANGELOG
+      issues: write # etiquetas do pull request de release
+      pull-requests: write # abrir e atualizar o pull request de release
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.token || github.token }}
+          release-type: ${{ inputs.release-type }}
+          target-branch: ${{ inputs.target-branch }}

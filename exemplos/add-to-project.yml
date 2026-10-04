@@ -1,0 +1,19 @@
+# Copie para .github/workflows/add-to-project.yml do repositório e crie o
+# segredo PROJECT_TOKEN com um PAT (veja o README).
+name: Adicionar ao Project
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  add:
+    uses: thinkmadu/automacoes/.github/workflows/add-to-project.yml@main
+    with:
+      project-url: https://github.com/users/thinkmadu/projects/NUMERO
+    secrets:
+      project-token: ${{ secrets.PROJECT_TOKEN }}

@@ -1,0 +1,20 @@
+# Copie para .github/workflows/release-please.yml do repositório e ligue
+# "Allow GitHub Actions to create and approve pull requests" em
+# Settings > Actions > General.
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release-please:
+    permissions:
+      contents: write # tag, release e o commit do CHANGELOG
+      issues: write # etiquetas do pull request de release
+      pull-requests: write # abrir e atualizar o pull request de release
+    uses: thinkmadu/automacoes/.github/workflows/release-please.yml@main
+    with:
+      release-type: node # ou python, simple, ...
