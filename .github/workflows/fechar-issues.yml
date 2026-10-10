@@ -1,0 +1,75 @@
+name: Fechar issues
+
+# O GitHub só lê `Closes #n` na descrição de pull request que mira a branch
+# padrão. Nos repositórios com `develop`, o pull request mira `develop`, a
+# palavra-chave é ignorada e a issue ficaria aberta até o commit chegar à
+# `main`. Este workflow fecha, no merge na branch de trabalho, as issues do
+# mesmo repositório citadas na descrição com palavra de fechamento.
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: Branch em que o merge do pull request fecha as issues citadas.
+        type: string
+        default: develop
+
+permissions: {}
+
+jobs:
+  fechar:
+    name: fechar
+    # Só pull request mesclado, na branch de trabalho, vindo deste repositório:
+    # pull request de fork recebe token só de leitura e não conseguiria fechar.
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == inputs.branch &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write # para fechar e comentar
+    steps:
+      # A descrição é texto que o autor do pull request escolheu; ela chega
+      # ao script por variável de ambiente, nunca por `${{ }}` dentro do
+      # `run`, onde viraria shell.
+      - name: Fechar as issues citadas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORIO: ${{ github.repository }}
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+          PR_DESCRICAO: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+          # Palavras do GitHub (close, fix, resolve e flexões) e duas em
+          # português. `#n` sem dono/repo antes: só issue deste repositório.
+          mapfile -t numeros < <(
+            printf '%s\n' "${PR_DESCRICAO}" |
+              grep -oiE '(^|[^[:alnum:]_/])(close[sd]?|fix(e[sd])?|resolve[sd]?|fecha|corrige)[[:space:]]*:?[[:space:]]+#[0-9]+' |
+              grep -oE '[0-9]+$' |
+              sort -un || true
+          )
+          if [ "${#numeros[@]}" -eq 0 ]; then
+            echo "::notice::O pull request #${PR_NUMERO} não cita issue com palavra de fechamento."
+            exit 0
+          fi
+          for numero in "${numeros[@]}"; do
+            estado=$(gh api "repos/${REPOSITORIO}/issues/${numero}" \
+              --jq 'if .pull_request then "pull-request" else .state end' 2>/dev/null || echo "ausente")
+            case "${estado}" in
+              open)
+                gh issue close "${numero}" --repo "${REPOSITORIO}" --reason completed \
+                  --comment "Fechada pelo merge de #${PR_NUMERO} na \`${BRANCH}\`."
+                echo "Fechada a issue #${numero}."
+                ;;
+              closed)
+                echo "A issue #${numero} já estava fechada."
+                ;;
+              pull-request)
+                echo "::warning::#${numero} é pull request, não issue; nada a fechar."
+                ;;
+              *)
+                echo "::warning::#${numero} não existe neste repositório."
+                ;;
+            esac
+          done
