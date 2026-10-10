@@ -1,0 +1,16 @@
+# Copie para .github/workflows/fechar-issues.yml do repositório. Na descrição
+# do pull request, cite a issue com palavra de fechamento ("Closes #12",
+# "Fecha #12"); no merge na develop ela fecha com um comentário.
+name: Fechar issues
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  fechar:
+    permissions:
+      issues: write # para fechar e comentar a issue citada
+    uses: thinkmadu/automacoes/.github/workflows/fechar-issues.yml@main
