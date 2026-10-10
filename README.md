@@ -9,6 +9,7 @@ Uma correção feita aqui chega a todos na próxima execução, sem tocar neles.
 | [`ci-python.yml`](.github/workflows/ci-python.yml) | Lint, formatação, tipos e testes com uv (padrão: ruff e pytest) |
 | [`ci-node.yml`](.github/workflows/ci-node.yml) | Lint, tipos, testes e build com npm (padrão: scripts do `package.json`) |
 | [`add-to-project.yml`](.github/workflows/add-to-project.yml) | Coloca issue e pull request novos num GitHub Project |
+| [`fechar-issues.yml`](.github/workflows/fechar-issues.yml) | Fecha, no merge na `develop`, as issues que a descrição do pull request cita com palavra de fechamento |
 | [`release-please.yml`](.github/workflows/release-please.yml) | Pull request de release, tag e CHANGELOG a partir de Conventional Commits |
 
 Os arquivos prontos para copiar estão em [`exemplos/`](exemplos/).
@@ -62,7 +63,17 @@ linter que não ignora `.venv` sozinho (flake8, por exemplo) precisa excluí-la.
 | Workflow | O repositório que chama precisa de |
 |---|---|
 | `add-to-project.yml` | Segredo com PAT classic passado como `project-token`, só com o escopo `project` (mais `repo` apenas se o repositório for privado) |
+| `fechar-issues.yml` | No job, `issues: write`; o caller dispara em `pull_request` do tipo `closed` |
 | `release-please.yml` | No job, `contents`, `issues` e `pull-requests` com `write`; em Settings > Actions > General, "Allow GitHub Actions to create and approve pull requests" ligado |
+
+O GitHub só lê `Closes #n` na descrição de pull request que mira a branch
+padrão ([documentação](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)).
+Como os pull requests daqui miram `develop`, é o `fechar-issues.yml` que fecha a
+issue no merge. Ele aceita as palavras do GitHub (`closes`, `fixes`, `resolves` e
+flexões) e `fecha` e `corrige`, só para issue do mesmo repositório (`#12`, não
+`dona/repo#12`). Ponha a mesma linha na mensagem do commit: se o caller ainda não
+existir quando o pull request for mesclado, a issue fecha quando o commit chegar
+à `main`.
 
 Com o `GITHUB_TOKEN`, o pull request de release não dispara os outros
 workflows, e o CI não roda nele. Se a `main` exige o CI para mesclar, passe um
