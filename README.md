@@ -11,6 +11,7 @@ Uma correção feita aqui chega a todos na próxima execução, sem tocar neles.
 | [`add-to-project.yml`](.github/workflows/add-to-project.yml) | Coloca issue e pull request novos num GitHub Project |
 | [`fechar-issues.yml`](.github/workflows/fechar-issues.yml) | Fecha, no merge na `develop`, as issues que a descrição do pull request cita com palavra de fechamento |
 | [`release-please.yml`](.github/workflows/release-please.yml) | Pull request de release, tag e CHANGELOG a partir de Conventional Commits |
+| [`atalhos.yml`](.github/workflows/atalhos.yml) | Anota no pull request os atalhos que passam no gate baixando a régua (teste pulado ou apagado, checador silenciado, stub, limite rebaixado); só reprova com `bloquear: true` |
 
 Os arquivos prontos para copiar estão em [`exemplos/`](exemplos/).
 

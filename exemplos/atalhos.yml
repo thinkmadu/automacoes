@@ -1,0 +1,16 @@
+# Copie para .github/workflows/atalhos.yml do repositório.
+name: Atalhos
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  atalhos:
+    uses: thinkmadu/automacoes/.github/workflows/atalhos.yml@main
+    # Descomente o que mudar do padrão.
+    # with:
+    #   aceitar: todo
+    #   bloquear: true
