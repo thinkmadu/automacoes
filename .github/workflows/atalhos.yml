@@ -1,0 +1,89 @@
+name: Atalhos
+
+# Trava de atalhos num pull request: acusa quando o diff passa no gate
+# baixando a régua (teste pulado, apagado ou com asserção a menos no total,
+# checador silenciado sem código de regra, stub, except vazio, TODO, limite
+# rebaixado em config e verificação tirada do CI). É o floor-guard de
+# addyosmani/agent-skills (MIT) em script, sem modelo. O script é
+# scripts/conferir-escopo.py, cópia da versão que roda na sessão local.
+# Começa só avisando: cada achado vira anotação no pull request, e o job só
+# reprova com `bloquear: true`.
+on:
+  workflow_call:
+    inputs:
+      aceitar:
+        description: Regras liberadas, separadas por vírgula (por exemplo `todo`).
+        type: string
+        default: ""
+      bloquear:
+        description: Reprova o job quando acha atalho.
+        type: boolean
+        default: false
+      ref-automacoes:
+        description: Versão do script (branch, tag ou SHA deste repositório).
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  atalhos:
+    name: atalhos
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Histórico inteiro: a trava compara a base do pull request com o
+      # worktree, e a base precisa estar no clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thinkmadu/automacoes
+          ref: ${{ inputs.ref-automacoes }}
+          path: .trava-automacoes
+          persist-credentials: false
+
+      # O script sai do worktree antes de rodar: a trava fotografa o worktree
+      # inteiro, e a pasta do segundo checkout apareceria como arquivo novo.
+      - name: Conferir atalhos
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          ACEITAR: ${{ inputs.aceitar }}
+          BLOQUEAR: ${{ inputs.bloquear }}
+        run: |
+          cp .trava-automacoes/scripts/conferir-escopo.py "$RUNNER_TEMP/"
+          rm -rf .trava-automacoes
+          args=(--base "$BASE" --permitidos '*' --teto 1000000000 --json)
+          [ -n "$ACEITAR" ] && args+=(--aceitar "$ACEITAR")
+          set +e
+          python3 "$RUNNER_TEMP/conferir-escopo.py" "${args[@]}" >"$RUNNER_TEMP/atalhos.json"
+          codigo=$?
+          set -e
+          if [ "$codigo" -ge 64 ]; then
+            echo "::error title=atalhos::a trava não rodou (código $codigo)"
+            exit 1
+          fi
+          python3 - "$RUNNER_TEMP/atalhos.json" <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          import sys
+
+          d = json.load(open(sys.argv[1], encoding="utf-8"))
+          if not d["atalhos"]:
+              print("Nenhum atalho no diff.")
+          for a in d["atalhos"]:
+              onde = a["onde"]
+              arquivo, _, linha = onde.split(" (")[0].partition(":")
+              local = f"file={arquivo}" + (f",line={linha}" if linha.isdigit() else "")
+              print(f"::warning {local},title=atalho {a['regra']}::{a['regra']} em {onde}")
+          PY
+          if [ $((codigo & 4)) -ne 0 ] && [ "$BLOQUEAR" = "true" ]; then
+            exit 1
+          fi
